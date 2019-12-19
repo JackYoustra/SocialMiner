@@ -2,6 +2,8 @@ import argparse as ap
 from parsers.general import parse
 from pathlib import Path
 import logging as lg
+import pandas as pd
+
 
 lg.basicConfig(
     level=lg.INFO,
@@ -27,4 +29,5 @@ if __name__ == '__main__':
         if result is None:
             lg.warning("Couldn't find a parser for {} - skipping".format(path.name))
         else:
+            print("Parsed {}".format(str(result)))
             result.visualize(base_path)

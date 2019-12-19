@@ -16,6 +16,9 @@ class ParserOutput(Pathnamed):
     def resource_path(self) -> str:
         return self.service()
 
+    def __str__(self):
+        return self.service()
+
 def isSpotify(fileList):
     for file in fileList:
         if file[-5:] != ".json" and file[7:] != "Read Me First.pdf" and file[-1] != "/":
