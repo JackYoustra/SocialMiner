@@ -4,7 +4,7 @@ from pathlib import Path
 import logging as lg
 
 lg.basicConfig(
-    level=lg.DEBUG,
+    level=lg.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
     handlers=[
         lg.StreamHandler()
@@ -16,6 +16,8 @@ if __name__ == '__main__':
     parser.add_argument("sources", metavar="S", type=str, nargs="+", help="A series of sources from which to parse")
     args = parser.parse_args()
 
+    base_path = Path("../out/")
+
     for source in args.sources:
         path = Path(source)
         if not path.is_file():
@@ -24,3 +26,5 @@ if __name__ == '__main__':
         result = parse(source)
         if result is None:
             lg.warning("Couldn't find a parser for {} - skipping".format(path.name))
+        else:
+            result.visualize(base_path)

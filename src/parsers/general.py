@@ -1,18 +1,20 @@
 import zipfile as zf
 import logging as lg
 from abc import ABCMeta, abstractmethod
-from parsers.fb import parse_facebook
-from parsers.spotify import parse_spotify
+from visualizer import Pathnamed
 
 
-def ParserOutput(metaclass=ABCMeta):
-    def __init__(self, ):
+class ParserOutput(Pathnamed):
+    def __init__(self):
         pass
 
     @staticmethod
     @abstractmethod
-    def service():
+    def service() -> str:
         pass
+
+    def resource_path(self) -> str:
+        return self.service()
 
 def isSpotify(fileList):
     for file in fileList:
@@ -39,3 +41,7 @@ def parse(filepath):
     if parser is None:
         return None
     return parser(filepath)
+
+
+from parsers.fb import parse_facebook
+from parsers.spotify import parse_spotify

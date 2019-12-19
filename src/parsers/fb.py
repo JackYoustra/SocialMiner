@@ -7,7 +7,7 @@ class FacebookOutput:
         self.uid = uid
 
     @staticmethod
-    def service():
+    def service() -> str:
         return "Facebook"
 
 def parse_facebook(filepath):
