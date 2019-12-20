@@ -60,7 +60,7 @@ class FacebookOutput(ParserOutput):
         instance_path = root_path / self.resource_path()
         if not instance_path.exists():
             # we should recreate
-            instance_path.mkdir(exist_ok=True)
+            instance_path.mkdir(exist_ok=True, parents=True)
             self.pie_visualize(instance_path)
 
     def pie_visualize(self, path: Path):

@@ -35,4 +35,4 @@ def top_pie_visualization(title: str, output_dir: Path, pie_sources: list, pie_l
         x, y = a.get_position()
         angle = degrees(atan(y / x))
         a.set_rotation(angle)
-    piefig.savefig(output_dir / "{}.png".format(title))
+    piefig.savefig(output_dir / "{}.png".format(title), bbox_inches='tight')

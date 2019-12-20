@@ -40,7 +40,7 @@ class SpotifyOutput(ParserOutput, Visualizeable):
         instance_path = root_path / self.resource_path()
         if not instance_path.exists():
             # we should recreate
-            instance_path.mkdir(exist_ok=True)
+            instance_path.mkdir(exist_ok=True, parents=True)
             self.duration_visualize(instance_path)
             self.pie_visualize(instance_path)
 
