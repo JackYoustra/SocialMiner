@@ -1,13 +1,11 @@
-import zipfile as zf
 import logging as lg
-from abc import ABCMeta, abstractmethod
+import zipfile as zf
+from abc import abstractmethod
+
 from visualizer import Pathnamed
 
 
 class ParserOutput(Pathnamed):
-    def __init__(self):
-        pass
-
     @staticmethod
     @abstractmethod
     def service() -> str:
@@ -19,12 +17,14 @@ class ParserOutput(Pathnamed):
     def __str__(self):
         return self.service()
 
+
 def isSpotify(fileList):
     for file in fileList:
         if file[-5:] != ".json" and file[7:] != "Read Me First.pdf" and file[-1] != "/":
             lg.debug("Can't find spotify because found {}".format(file))
             return False
     return True
+
 
 # return a pandas table with a list of messages, and a pandas table with a list of conversations
 # Each message has a reference to its conversation

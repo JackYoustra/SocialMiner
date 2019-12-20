@@ -1,10 +1,10 @@
 import argparse as ap
-from parsers.general import parse
-from pathlib import Path
 import logging as lg
-import pandas as pd
+from pathlib import Path
 
+from parsers.general import parse
 
+# noinspection PyArgumentList
 lg.basicConfig(
     level=lg.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
