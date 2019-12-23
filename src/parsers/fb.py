@@ -1,9 +1,12 @@
 import json as jn
 import zipfile as zf
+from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
+from tqdm import tqdm
 
+from models import nlp
 from parsers.general import ParserOutput
 from visualizer import top_pie_visualization
 
@@ -19,9 +22,16 @@ class FacebookOutput(ParserOutput):
                 For now, the other fields don't matter.
         """
         self.uid = uid
-        self.messages = messages
-        print(self.messages.columns)
-        print(self.messages)
+
+        # really dumb, but we can just slap on a sentiment per-message
+        # could take a while to compute
+        executor = ThreadPoolExecutor()
+        self.messages = messages.dropna('index', 'any', subset=['content'])
+        messageTexts = self.messages['content'].values
+
+        sentiments = list(tqdm(executor.map(nlp.evaluate_sentiment, messageTexts), total=len(messageTexts)))
+
+        self.messages.assign(sentiment=sentiments)
 
         def num_words(text) -> int:
             if isinstance(text, float):
@@ -41,7 +51,8 @@ class FacebookOutput(ParserOutput):
                     sum((num_characters(i[-1]) for i in pairs.values))]
 
         # messenger-centric approach
-        grouped = self.messages[['sender_name', 'content']].groupby(['sender_name'], sort=False)
+        grouped = self.messages[['sender_name', 'content', 'sentiment']].groupby(['sender_name'], sort=False)
+        self.to_csv("out/Facebook/messages.csv")
         self.author_table = grouped.apply(message_ops)  # NOT the same as the below apply
         cols = ['num_messages', 'num_words', 'num_characters_norm']
         self.author_table = pd.DataFrame(self.author_table.values.tolist(),

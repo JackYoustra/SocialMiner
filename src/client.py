@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument("sources", metavar="S", type=str, nargs="+", help="A series of sources from which to parse")
     args = parser.parse_args()
 
-    base_path = Path("../out/")
+    base_path = Path("out/")
 
     source_pool = Pool()
     parsed_representations = source_pool.map(process_source, args.sources)
