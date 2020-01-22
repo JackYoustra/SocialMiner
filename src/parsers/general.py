@@ -35,16 +35,16 @@ def parse(filepath):
             # Get list of files names in zip
             fileList = zipObj.namelist()
             # Iterate over the list of file names in given list & print them
+            # Put imports here because want to load tensorflow into child: https://github.com/tensorflow/tensorflow/issues/5448
             if "messages/" in fileList:
                 # we're probably facebook
+                from parsers.fb import parse_facebook
                 parser = parse_facebook
             elif isSpotify(fileList):
+                from parsers.spotify import parse_spotify
                 parser = parse_spotify
 
     if parser is None:
         return None
     return parser(filepath)
 
-
-from parsers.fb import parse_facebook
-from parsers.spotify import parse_spotify

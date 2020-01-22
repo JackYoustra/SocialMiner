@@ -18,10 +18,12 @@ class Visualizeable(metaclass=ABCMeta):
         pass
 
 
-def top_pie_visualization(title: str, output_dir: Path, pie_sources: list, pie_labels: list, slice_count: int,
+def top_pie_visualization(title: str, output_dir: Path, pie_sources: list, pie_labels: list, slice_count: int = -1,
                           total=None):
     if total is None:
         total = sum(pie_sources)
+    if slice_count == -1:
+        slice_count = len(pie_sources)
     piefig, pie = plt.subplots()
     slices = pie_sources[:slice_count - 1] / total
     other = 1 - sum(slices)

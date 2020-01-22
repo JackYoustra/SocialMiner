@@ -67,7 +67,8 @@ class SpotifyOutput(ParserOutput, Visualizeable):
         )
 
         for label, pie_sources, pie_labels in labels_and_sources:
-            top_pie_visualization(label, output_dir, pie_sources, pie_labels, slice_count, total=self.total_time)
+            top_pie_visualization(label, output_dir, pie_sources, pie_labels, slice_count=slice_count,
+                                  total=self.total_time)
 
 
 # return a table of plays, with songs, artists, and playtimes

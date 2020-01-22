@@ -11,7 +11,6 @@ from transformers import pipeline
 
 sentiment_pipeline = pipeline('sentiment-analysis')
 
-
 def evaluate_sentiment(sentence):
     try:
         pipeline = sentiment_pipeline(sentence)
@@ -40,9 +39,9 @@ if __name__ == '__main__':
 
     words = [" ".join(my_shuffle(sources)) for _ in range(1000)]
 
-    executor = ThreadPoolExecutor(max_workers=20)
+    executor = ThreadPoolExecutor()
 
-    sentiments = list(tqdm(executor.map(evaluate_sentiment, words), total=len(words)))
+    sentiments = list(tqdm(map(evaluate_sentiment, words), total=len(words)))
     print(sentiments)
 
     # findings
@@ -52,3 +51,6 @@ if __name__ == '__main__':
     # 1000 workers yields 3 seconds (???) error in measuring
     # default yields 55 seconds
     # no device yields much longer, probably around three minutes
+
+    # for i9-9980HK without dGPU support, 1000 takes 2 min 30 sec with 20 workers. With 96 workers, takes ~2 min.
+    # With default number of workers, takes 1 min 50 secs

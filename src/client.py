@@ -37,5 +37,6 @@ if __name__ == '__main__':
     base_path = Path("out/")
 
     source_pool = Pool()
+    # can't do multiprocessing with parent TF: https://github.com/tensorflow/tensorflow/issues/5448
     parsed_representations = source_pool.map(process_source, args.sources)
     print([x.service() for x in parsed_representations])

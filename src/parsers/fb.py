@@ -1,8 +1,10 @@
+import gzip as gz
 import json as jn
 import zipfile as zf
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -11,8 +13,20 @@ from parsers.general import ParserOutput
 from visualizer import top_pie_visualization
 
 
+class NumpyEncoder(jn.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NumpyEncoder, self).default(obj)
+
+
 class FacebookOutput(ParserOutput):
-    def __init__(self, uid, messages):
+    def __init__(self, uid, messages, reactions):
         """
         Create a Facebook parser
 
@@ -20,16 +34,46 @@ class FacebookOutput(ParserOutput):
             uid: The facebook user ID. Likely an integer.
             messages: A pandas table keyed on a message id with a conversation id attached.
                 For now, the other fields don't matter.
+            reactions: A list of reactions that the user has
         """
         self.uid = uid
+        self.reactions = reactions
 
         # really dumb, but we can just slap on a sentiment per-message
         # could take a while to compute
         executor = ThreadPoolExecutor()
         self.messages = messages.dropna('index', 'any', subset=['content'])
         messageTexts = self.messages['content'].values
+        map(nlp.evaluate_sentiment, messageTexts)
 
-        sentiments = list(tqdm(executor.map(nlp.evaluate_sentiment, messageTexts), total=len(messageTexts)))
+        cachepath = Path("out/cache")
+        sentiment_cache_path = cachepath / "sentiment.txt.gz"
+        sentiment_values = {}
+
+        if sentiment_cache_path.exists():
+            with gz.open(sentiment_cache_path, 'r') as filehandle:
+                sentiment_values = jn.load(filehandle)
+
+        def writeback():
+            cachepath.mkdir(parents=True, exist_ok=True)
+            with gz.open(sentiment_cache_path, 'wt') as outfile:
+                print("Dying with values {}".format(sentiment_values))
+                # https://stackoverflow.com/a/27050186/998335
+                jn.dump(sentiment_values, outfile, cls=NumpyEncoder)
+                outfile.flush()
+
+        def evaluate_sentiment_cached(sentence):
+            if sentence in sentiment_values:
+                return sentiment_values[sentence]
+            result = nlp.evaluate_sentiment(sentence)
+            sentiment_values[sentence] = result
+            return result
+
+        try:
+            sentiments = list(tqdm(executor.map(evaluate_sentiment_cached, messageTexts), total=len(messageTexts)))
+        finally:
+            # Cache the stuff
+            writeback()
 
         self.messages.assign(sentiment=sentiments)
 
@@ -77,17 +121,20 @@ class FacebookOutput(ParserOutput):
     def pie_visualize(self, path: Path):
         slices = 20
         top_pie_visualization("top {} messengers".format(slices), path,
-                              self.author_table['num_messages'].values, self.author_table.index.values, slices)
+                              self.author_table['num_messages'].values, self.author_table.index.values,
+                              slice_count=slices)
         word_toppers = self.author_table.sort_values('num_words', ascending=False)
         top_pie_visualization("top {} messengers by words".format(slices), path,
-                              word_toppers['num_words'].values, word_toppers.index.values, slices)
+                              word_toppers['num_words'].values, word_toppers.index.values, slice_count=slices)
         character_toppers = self.author_table.sort_values('num_characters_norm', ascending=False)
         top_pie_visualization("top {} messengers by normalized characters".format(slices), path,
                               character_toppers['num_characters_norm'].values, character_toppers.index.values, slices)
+        top_pie_visualization("Reactions by type", path, self.reactions, self.reactions.index.values)
 
 
 def parse_facebook(filepath):
     message_frames = []
+    reactions = None
     with zf.ZipFile(filepath, 'r') as zipObj:
         # Get list of files names in zip
         fileList = zipObj.namelist()
@@ -113,6 +160,22 @@ def parse_facebook(filepath):
                     message_fragment = pd.DataFrame.from_records(messages)
                     message_fragment['conversation_id'] = conversation_id
                     message_frames.append(message_fragment)
+            if "likes_and_reactions/posts_and_comments.json" in filename:
+                # the reactions portion
+                data = zipObj.read(filename)
+                reaction_data = jn.loads(data.decode("utf-8"))
+                reactions = pd.DataFrame.from_records(reaction_data['reactions'])
+                # The actor field here should always be the current user, ditch
+                # I have no idea what this attachments field is used for. I'm going to ignore it for now
+                thing = reactions["data"].values
+
+                def unpack(reaction_struct):
+                    assert len(reaction_struct) == 1
+                    return reaction_struct[0]['reaction']['reaction']
+
+                reactions["type"] = [unpack(x) for x in reactions["data"].values]
+                reactions.drop(['data', 'attachments'], axis=1, inplace=True)
+
     final_out = pd.concat(message_frames, copy=False, ignore_index=True, sort=False)
 
-    return FacebookOutput(1, final_out)
+    return FacebookOutput(1, final_out, reactions)
