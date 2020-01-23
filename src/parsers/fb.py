@@ -59,7 +59,8 @@ class FacebookOutput(ParserOutput):
             with gz.open(sentiment_cache_path, 'wt') as outfile:
                 print("Dying with values {}".format(sentiment_values))
                 # https://stackoverflow.com/a/27050186/998335
-                jn.dump(sentiment_values, outfile, cls=NumpyEncoder)
+                # jn.dump(sentiment_values, outfile, cls=NumpyEncoder)
+                outfile.write(jn.dumps(sentiment_values, cls=NumpyEncoder))
                 outfile.flush()
 
         rewrite_threshold = 1000
@@ -74,6 +75,9 @@ class FacebookOutput(ParserOutput):
             return result
 
         sentiments = list(tqdm(executor.map(evaluate_sentiment_cached, messageTexts), total=len(messageTexts)))
+
+        # probably should also writeback when done
+        writeback()
 
         self.messages.assign(sentiment=sentiments)
 
