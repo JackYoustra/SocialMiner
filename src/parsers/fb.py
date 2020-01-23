@@ -69,7 +69,7 @@ class FacebookOutput(ParserOutput):
             result = nlp.evaluate_sentiment(sentence)
             sentiment_values[sentence] = result
             if len(sentiment_values) % rewrite_threshold == 0:
-                print("Writing back {}".format(sentiment_values))
+                print("Writing back {}".format(len(sentiment_values)))
                 writeback()
             return result
 
