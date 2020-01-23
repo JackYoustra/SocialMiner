@@ -1,15 +1,16 @@
-from tensorflow.compat.v1 import ConfigProto
-from tensorflow.compat.v1 import InteractiveSession
-
-# memory explodes without this
-config = ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 1.0
-config.gpu_options.allow_growth = True
-session = InteractiveSession(config=config)
+# from tensorflow.compat.v1 import ConfigProto
+# from tensorflow.compat.v1 import InteractiveSession
+#
+# # memory explodes without this
+# config = ConfigProto()
+# config.gpu_options.per_process_gpu_memory_fraction = 1.0
+# config.gpu_options.allow_growth = True
+# session = InteractiveSession(config=config)
 
 from transformers import pipeline
 
 sentiment_pipeline = pipeline('sentiment-analysis')
+
 
 def evaluate_sentiment(sentence):
     try:

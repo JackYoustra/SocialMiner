@@ -62,18 +62,18 @@ class FacebookOutput(ParserOutput):
                 jn.dump(sentiment_values, outfile, cls=NumpyEncoder)
                 outfile.flush()
 
+        rewrite_threshold = 1000
         def evaluate_sentiment_cached(sentence):
             if sentence in sentiment_values:
                 return sentiment_values[sentence]
             result = nlp.evaluate_sentiment(sentence)
             sentiment_values[sentence] = result
+            if len(sentiment_values) % rewrite_threshold == 0:
+                print("Writing back {}".format(sentiment_values))
+                writeback()
             return result
 
-        try:
-            sentiments = list(tqdm(executor.map(evaluate_sentiment_cached, messageTexts), total=len(messageTexts)))
-        finally:
-            # Cache the stuff
-            writeback()
+        sentiments = list(tqdm(executor.map(evaluate_sentiment_cached, messageTexts), total=len(messageTexts)))
 
         self.messages.assign(sentiment=sentiments)
 
