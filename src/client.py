@@ -13,7 +13,6 @@ lg.basicConfig(
         lg.StreamHandler()
     ])
 
-
 def process_source(source):
     path = Path(source)
     if not path.is_file():
@@ -31,7 +30,9 @@ def process_source(source):
 if __name__ == '__main__':
     parser = ap.ArgumentParser()
     # we parse all of the sources and determine which parser to use automatically
-    parser.add_argument("sources", metavar="S", type=str, nargs="+", help="A series of sources from which to parse")
+    parser.add_argument("sources", metavar="source", type=str, nargs="+",
+                        help="A series of sources from which to parse")
+    parser.add_argument("-r", "--reduced", help="Operate on a reduced from the input. Useful for testing.")
     args = parser.parse_args()
 
     base_path = Path("out/")

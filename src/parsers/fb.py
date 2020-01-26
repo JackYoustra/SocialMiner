@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from models import nlp
 from parsers.general import ParserOutput
 from visualizer import top_pie_visualization
 
@@ -44,7 +43,6 @@ class FacebookOutput(ParserOutput):
         executor = ThreadPoolExecutor()
         self.messages = messages.dropna('index', 'any', subset=['content'])
         messageTexts = self.messages['content'].values
-        map(nlp.evaluate_sentiment, messageTexts)
 
         cachepath = Path("out/cache")
         sentiment_cache_path = cachepath / "sentiment.txt.gz"
@@ -57,29 +55,35 @@ class FacebookOutput(ParserOutput):
         def writeback():
             cachepath.mkdir(parents=True, exist_ok=True)
             with gz.open(sentiment_cache_path, 'wt') as outfile:
-                print("Dying with values {}".format(sentiment_values))
                 # https://stackoverflow.com/a/27050186/998335
                 # jn.dump(sentiment_values, outfile, cls=NumpyEncoder)
                 outfile.write(jn.dumps(sentiment_values, cls=NumpyEncoder))
                 outfile.flush()
 
         rewrite_threshold = 1000
+        first_evaluate = False
+
         def evaluate_sentiment_cached(sentence):
             if sentence in sentiment_values:
                 return sentiment_values[sentence]
+            if not first_evaluate:
+                from models import nlp
+                first_evaluate = True
             result = nlp.evaluate_sentiment(sentence)
             sentiment_values[sentence] = result
             if len(sentiment_values) % rewrite_threshold == 0:
-                print("Writing back {}".format(len(sentiment_values)))
                 writeback()
             return result
 
         sentiments = list(tqdm(executor.map(evaluate_sentiment_cached, messageTexts), total=len(messageTexts)))
 
-        # probably should also writeback when done
-        writeback()
+        if first_evaluate:
+            # probably should also writeback when done, if we've changed
+            print("Saving")
+            writeback()
 
-        self.messages.assign(sentiment=sentiments)
+        self.messages = self.messages.assign(sentiment=lambda x: [s[0]['label'] for s in sentiments],
+                                             confidence=lambda x: [s[0]['score'] for s in sentiments])
 
         def num_words(text) -> int:
             if isinstance(text, float):
@@ -100,13 +104,16 @@ class FacebookOutput(ParserOutput):
 
         # messenger-centric approach
         grouped = self.messages[['sender_name', 'content', 'sentiment']].groupby(['sender_name'], sort=False)
-        self.to_csv("out/Facebook/messages.csv")
         self.author_table = grouped.apply(message_ops)  # NOT the same as the below apply
         cols = ['num_messages', 'num_words', 'num_characters_norm']
         self.author_table = pd.DataFrame(self.author_table.values.tolist(),
                                          index=self.author_table.index,
                                          columns=cols)
         self.author_table.sort_values(cols, ascending=False, inplace=True)
+        self.sentiment_table = self.messages[['sentiment', 'confidence']].groupby(['sentiment'], sort=False).aggregate({
+            'confidence': sum
+        })
+        self.reaction_by_type = self.reactions['type'].value_counts()
 
         # space-delimited
         # print(self.messages[self.messages['sender_name'] == 'Jack Youstra'][:10])
@@ -117,10 +124,8 @@ class FacebookOutput(ParserOutput):
 
     def visualize(self, root_path: Path):
         instance_path = root_path / self.resource_path()
-        if not instance_path.exists():
-            # we should recreate
-            instance_path.mkdir(exist_ok=True, parents=True)
-            self.pie_visualize(instance_path)
+        instance_path.mkdir(exist_ok=True, parents=True)
+        self.pie_visualize(instance_path)
 
     def pie_visualize(self, path: Path):
         slices = 20
@@ -133,7 +138,10 @@ class FacebookOutput(ParserOutput):
         character_toppers = self.author_table.sort_values('num_characters_norm', ascending=False)
         top_pie_visualization("top {} messengers by normalized characters".format(slices), path,
                               character_toppers['num_characters_norm'].values, character_toppers.index.values, slices)
-        top_pie_visualization("Reactions by type", path, self.reactions, self.reactions.index.values)
+        top_pie_visualization("Reactions by type", path, self.reaction_by_type.values,
+                              self.reaction_by_type.index.values)
+        top_pie_visualization("Sentiment by instance", path, self.sentiment_table['confidence'].values.astype(int),
+                              self.sentiment_table.index.values)
 
 
 def parse_facebook(filepath):
@@ -150,6 +158,8 @@ def parse_facebook(filepath):
                     # the title of the message is currently <name of counterparty or group chat>_<conversationUUID(I think)>
                     # example: messages/inbox/friendlygroupchat_ksfzjduiuw/message_1.json
                     # example: messages/inbox/jackyosutra_kfcznquruw/message_1.json
+                    if len(message_frames) > 10:
+                        continue
                     data = zipObj.read(filename)
                     chat_data = jn.loads(data.decode("utf-8"))
                     participants = []
@@ -181,5 +191,4 @@ def parse_facebook(filepath):
                 reactions.drop(['data', 'attachments'], axis=1, inplace=True)
 
     final_out = pd.concat(message_frames, copy=False, ignore_index=True, sort=False)
-
     return FacebookOutput(1, final_out, reactions)
