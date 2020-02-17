@@ -115,8 +115,12 @@ class FacebookOutput(ParserOutput):
         })
         self.reaction_by_type = self.reactions['type'].value_counts()
 
-        # space-delimited
-        # print(self.messages[self.messages['sender_name'] == 'Jack Youstra'][:10])
+        # We want to regularize sentiment. These high scores for individual words aren't really useful, so we probably
+        # want to regularize based on some idea of "emotions shouldn't be volatile" and apply that adjustemnt to it.
+        # Some features:
+        # - sentence length
+        # - recent message history
+        # - straight-up spend a few hours making a dataset (idk how I'd do that)
 
     @staticmethod
     def service() -> str:
@@ -126,6 +130,13 @@ class FacebookOutput(ParserOutput):
         instance_path = root_path / self.resource_path()
         instance_path.mkdir(exist_ok=True, parents=True)
         self.pie_visualize(instance_path)
+        wordcloud_path = instance_path / "messagecloud.png"
+        if not wordcloud_path.exists():
+            from wordcloud import WordCloud
+            wordcloud = WordCloud(width=3840, height=2160, max_words=1600).generate(
+                " ".join(self.messages['content'].values))
+            image = wordcloud.to_image()
+            image.save(wordcloud_path)
 
     def pie_visualize(self, path: Path):
         slices = 20
@@ -144,7 +155,7 @@ class FacebookOutput(ParserOutput):
                               self.sentiment_table.index.values)
 
 
-def parse_facebook(filepath):
+def parse_facebook(filepath, reduced):
     message_frames = []
     reactions = None
     with zf.ZipFile(filepath, 'r') as zipObj:
@@ -158,7 +169,7 @@ def parse_facebook(filepath):
                     # the title of the message is currently <name of counterparty or group chat>_<conversationUUID(I think)>
                     # example: messages/inbox/friendlygroupchat_ksfzjduiuw/message_1.json
                     # example: messages/inbox/jackyosutra_kfcznquruw/message_1.json
-                    if len(message_frames) > 10:
+                    if reduced and len(message_frames) > 10:
                         continue
                     data = zipObj.read(filename)
                     chat_data = jn.loads(data.decode("utf-8"))

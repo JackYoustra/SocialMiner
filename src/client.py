@@ -1,9 +1,10 @@
 import argparse as ap
+import itertools as it
 import logging as lg
 from multiprocessing.pool import Pool
 from pathlib import Path
 
-from parsers.general import parse
+from parsers.general import parse, combined_services
 
 # noinspection PyArgumentList
 lg.basicConfig(
@@ -13,12 +14,13 @@ lg.basicConfig(
         lg.StreamHandler()
     ])
 
-def process_source(source):
+
+def process_source(source, reduced):
     path = Path(source)
     if not path.is_file():
         lg.error("{} is not a file".format(path.resolve()))
         exit(1)
-    result = parse(source)
+    result = parse(source, reduced)
     if result is None:
         lg.warning("Couldn't find a parser for {} - skipping".format(path.name))
     else:
@@ -39,5 +41,6 @@ if __name__ == '__main__':
 
     source_pool = Pool()
     # can't do multiprocessing with parent TF: https://github.com/tensorflow/tensorflow/issues/5448
-    parsed_representations = source_pool.map(process_source, args.sources)
+    parsed_representations = source_pool.starmap(process_source, it.product(args.sources, [args.reduced]))
     print([x.service() for x in parsed_representations])
+    combined_services(parsed_representations)

@@ -10,9 +10,11 @@ from visualizer import Visualizeable, top_pie_visualization
 
 
 class SpotifyOutput(ParserOutput, Visualizeable):
-    def __init__(self, uid, playTable, playlists, misc_info):
+    def __init__(self, uid, playTable: pd.DataFrame, playlists: pd.DataFrame, misc_info):
         self.uid = uid
+        # ['endTime', 'artistName', 'trackName', 'msPlayed']
         self.playTable = playTable
+        print(self.playTable)
         self.playlists = playlists
         self.misc_info = misc_info
 
@@ -72,7 +74,7 @@ class SpotifyOutput(ParserOutput, Visualizeable):
 
 
 # return a table of plays, with songs, artists, and playtimes
-def parse_spotify(filepath):
+def parse_spotify(filepath, reduced):
     playTable = pd.DataFrame(columns=["endTime", "artistName", "trackName", "msPlayed"])
     playlists = None
     misc_info = {}
@@ -106,4 +108,7 @@ def parse_spotify(filepath):
 
     # now clean the playTable
     playTable.drop(playTable.loc[playTable["msPlayed"] == 0.0].index, inplace=True)
+    # Epoch times are more convenient
+    # The time is in UTC, so convert from there
+    playTable['endTime'] = (pd.to_datetime(playTable['endTime']).values.astype('int64') // 1e6).astype('int64')
     return SpotifyOutput(1, playTable, playlists, misc_info)

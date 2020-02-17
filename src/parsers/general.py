@@ -28,7 +28,7 @@ def isSpotify(fileList):
 
 # return a pandas table with a list of messages, and a pandas table with a list of conversations
 # Each message has a reference to its conversation
-def parse(filepath):
+def parse(filepath, reduced):
     parser = None
     if zf.is_zipfile(filepath):
         with zf.ZipFile(filepath, 'r') as zipObj:
@@ -46,5 +46,17 @@ def parse(filepath):
 
     if parser is None:
         return None
-    return parser(filepath)
+    return parser(filepath, reduced)
 
+
+def combined_services(services):
+    fb = None
+    spotify = None
+    for service in services:
+        if service.service() == "Facebook":
+            fb = service
+        elif service.service() == "Spotify":
+            spotify = service
+    if fb is not None and spotify is not None:
+        from models.music_sentiment import tag_music
+        tag_music(fb, spotify)
